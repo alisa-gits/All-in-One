@@ -1,0 +1,83 @@
+name: Notificar actualización de servidores
+
+on:
+  push:
+    branches:
+      - main
+    paths:
+      - ultra21.json
+      - sourceus.json
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: crissenhz-config-update
+  cancel-in-progress: true
+
+jobs:
+  notify:
+    name: Enviar notificación FCM
+    runs-on: ubuntu-latest
+    timeout-minutes: 5
+    env:
+      FIREBASE_SERVICE_ACCOUNT: ${{ secrets.FIREBASE_SERVICE_ACCOUNT }}
+
+    steps:
+      - name: Configurar Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: 22
+
+      - name: Verificar credencial de Firebase
+        shell: bash
+        run: |
+          if [ -z "$FIREBASE_SERVICE_ACCOUNT" ]; then
+            echo "::error::Falta el secreto FIREBASE_SERVICE_ACCOUNT."
+            exit 1
+          fi
+
+      - name: Instalar Firebase Admin
+        shell: bash
+        run: npm install --no-save --package-lock=false firebase-admin
+
+      - name: Notificar a CrissenHz Servers
+        shell: bash
+        run: |
+          node <<'NODE'
+          const { cert, initializeApp } = require('firebase-admin/app');
+          const { getMessaging } = require('firebase-admin/messaging');
+
+          let serviceAccount;
+          try {
+            serviceAccount = JSON.parse(process.env.FIREBASE_SERVICE_ACCOUNT);
+          } catch {
+            throw new Error('FIREBASE_SERVICE_ACCOUNT no contiene un JSON válido.');
+          }
+
+          initializeApp({
+            credential: cert(serviceAccount),
+            projectId: 'teamhzpro',
+          });
+
+          async function notify() {
+            const messageId = await getMessaging().send({
+              condition: "'com.crissenhz.servers' in topics || 'rx.teamhz.plus' in topics",
+              data: {
+                tipo: 'config_update',
+                id_notification: '4102',
+              },
+              android: {
+                priority: 'high',
+                ttl: 60 * 60 * 1000,
+              },
+            });
+            console.log(`Notificación enviada: ${messageId}`);
+          }
+
+          notify().catch((error) => {
+            console.error('No se pudo enviar la notificación:', error.message);
+            process.exitCode = 1;
+          });
+          NODE
