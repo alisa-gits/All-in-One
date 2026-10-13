@@ -5,8 +5,8 @@ on:
     branches:
       - main
     paths:
-      - ultra21.json
-      - sourceus.json
+  - alisaww.json
+  - archivo.json
   workflow_dispatch:
 
 permissions:
