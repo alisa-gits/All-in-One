@@ -1,11 +1,12 @@
 name: Notificar actualización de servidores
-
 on:
   push:
     branches:
       - main
     paths:
-  - alisaww.json
+      - alisaww.json
+      - archivo.json
+  workflow_dispatch:
   - archivo.json
   workflow_dispatch:
 
